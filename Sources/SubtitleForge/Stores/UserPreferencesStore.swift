@@ -4,6 +4,7 @@ import SubtitleForgeCore
 enum UserPreferencesStore {
     private static let settingsKey = "subtitleForge.translationSettings"
     private static let previewCueLimitKey = "subtitleForge.previewCueLimit"
+    private static let colorSchemeModeKey = "subtitleForge.colorSchemeMode"
 
     static func loadSettings() -> TranslationSettings {
         guard let data = UserDefaults.standard.data(forKey: settingsKey),
@@ -26,5 +27,18 @@ enum UserPreferencesStore {
 
     static func savePreviewCueLimit(_ value: Int) {
         UserDefaults.standard.set(value, forKey: previewCueLimitKey)
+    }
+
+    static func loadColorSchemeMode() -> AppColorSchemeMode {
+        guard let rawValue = UserDefaults.standard.string(forKey: colorSchemeModeKey),
+              let mode = AppColorSchemeMode(rawValue: rawValue)
+        else {
+            return .system
+        }
+        return mode
+    }
+
+    static func saveColorSchemeMode(_ mode: AppColorSchemeMode) {
+        UserDefaults.standard.set(mode.rawValue, forKey: colorSchemeModeKey)
     }
 }

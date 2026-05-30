@@ -12,6 +12,7 @@ struct InspectorView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
+                appearanceSection
                 providerSection
                 modelSection
                 chunkSection
@@ -37,6 +38,21 @@ struct InspectorView: View {
             }
             .buttonStyle(.borderless)
             .help("关闭")
+        }
+    }
+
+    private var appearanceSection: some View {
+        SettingsGroup(title: "外观") {
+            Picker("主题", selection: $store.colorSchemeMode) {
+                ForEach(AppColorSchemeMode.allCases) { mode in
+                    Text(mode.displayName).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text("默认跟随 macOS 系统外观 也可以手动固定为浅色或深色")
+                .font(.caption)
+                .foregroundStyle(AppTheme.mutedIvory)
         }
     }
 
