@@ -11,7 +11,7 @@ struct WorkspaceView: View {
                 VStack(spacing: 0) {
                     JobHeaderView(store: store, document: document)
                     FindReplaceToolbar(store: store)
-                    Divider().overlay(AppTheme.graphitePanel)
+                    Divider().overlay(AppTheme.divider)
                     SubtitlePreviewView(store: store, document: document)
                 }
             } else {
@@ -26,8 +26,8 @@ private struct JobHeaderView: View {
     let document: SubtitleDocument
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 18) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 22) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(document.name)
                         .font(.title2.weight(.semibold))
@@ -38,70 +38,87 @@ private struct JobHeaderView: View {
                         .foregroundStyle(AppTheme.mutedIvory)
 
                     if let generatedURL = document.generatedURL {
-                        Text("已生成 \(generatedURL.lastPathComponent)")
+                        Label("已生成 \(generatedURL.lastPathComponent)", systemImage: "checkmark.seal.fill")
                             .font(.caption)
                             .foregroundStyle(AppTheme.success)
                             .lineLimit(1)
                     }
                     if document.hasReviewWarnings {
-                        Text("有 \(document.reviewCueIDs.count) 条疑似人名需要检查")
+                        Label("有 \(document.reviewCueIDs.count) 条疑似人名需要检查", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(AppTheme.warning)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
+                actionButtons
+            }
 
-                VStack(alignment: .trailing, spacing: 10) {
-                    HStack(spacing: 10) {
-                        if store.isTranslating {
-                            Button {
-                                store.cancelTranslation()
-                            } label: {
-                                Label("停止任务", systemImage: "pause.circle")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.warning)
-                        } else {
-                            Button {
-                                store.translateSelected()
-                            } label: {
-                                Label("开始任务", systemImage: "play.circle.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.brass)
-                            .disabled(!store.canTranslate)
-                        }
-
-                        Button {
-                            store.exportSelectedToSourceFolder()
-                        } label: {
-                            Label("生成字幕", systemImage: "tray.and.arrow.down")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(document.translatedCount == 0 || document.isDeleted)
-
-                        Button {
-                            store.exportSelectedWithPanel()
-                        } label: {
-                            Label("另存为", systemImage: "square.and.arrow.up")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(document.translatedCount == 0 || document.isDeleted)
-                    }
-                }
-
+            HStack(alignment: .center, spacing: 12) {
                 StatusCapsule(title: "批次", value: batchText)
                 StatusCapsule(title: "校验", value: store.validation.summary, accent: store.validation.isComplete ? AppTheme.success : AppTheme.brass)
                 StatusCapsule(title: "进度", value: "\(Int(document.completionFraction * 100))%")
-            }
 
-            ProgressView(value: document.completionFraction)
-                .tint(AppTheme.brass)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("任务进度")
+                        Spacer()
+                        Text(store.progress.message)
+                            .lineLimit(1)
+                    }
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(AppTheme.mutedIvory)
+
+                    ProgressView(value: document.completionFraction)
+                        .tint(AppTheme.brass)
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
         .padding(.horizontal, 26)
         .padding(.vertical, 20)
         .background(AppTheme.graphiteRaised)
+    }
+
+    private var actionButtons: some View {
+        HStack(spacing: 10) {
+            if store.isTranslating {
+                Button {
+                    store.cancelTranslation()
+                } label: {
+                    Label("停止任务", systemImage: "pause.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.warning)
+            } else {
+                Button {
+                    store.translateSelected()
+                } label: {
+                    Label("开始任务", systemImage: "play.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.brass)
+                .disabled(!store.canTranslate)
+            }
+
+            Button {
+                store.exportSelectedToSourceFolder()
+            } label: {
+                Label("生成字幕", systemImage: "tray.and.arrow.down")
+            }
+            .buttonStyle(.bordered)
+            .disabled(document.translatedCount == 0 || document.isDeleted)
+
+            Button {
+                store.exportSelectedWithPanel()
+            } label: {
+                Label("另存为", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.bordered)
+            .disabled(document.translatedCount == 0 || document.isDeleted)
+        }
+        .controlSize(.large)
+        .fixedSize()
     }
 
     private var batchText: String {
@@ -114,6 +131,16 @@ private struct FindReplaceToolbar: View {
     @Bindable var store: AppStore
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            horizontalLayout
+            compactLayout
+        }
+        .padding(.horizontal, 26)
+        .padding(.vertical, 12)
+        .background(AppTheme.graphiteRaised.opacity(0.76))
+    }
+
+    private var horizontalLayout: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(AppTheme.mutedIvory)
@@ -144,9 +171,43 @@ private struct FindReplaceToolbar: View {
             }
             .disabled(store.selectedDocument == nil || store.replacementMatchCount == 0)
         }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 12)
-        .background(AppTheme.graphiteRaised.opacity(0.72))
+    }
+
+    private var compactLayout: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("查找替换译文", systemImage: "magnifyingglass")
+                    .foregroundStyle(AppTheme.mutedIvory)
+                Spacer()
+                Text("\(store.replacementMatchCount) 处")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(store.replacementMatchCount > 0 ? AppTheme.brass : AppTheme.mutedIvory)
+            }
+
+            HStack(spacing: 10) {
+                TextField("查找译文", text: $store.replacementSearchText)
+                    .textFieldStyle(.roundedBorder)
+                TextField("替换为", text: $store.replacementText)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            HStack(spacing: 10) {
+                Toggle("区分大小写", isOn: $store.replacementMatchCase)
+                    .toggleStyle(.checkbox)
+
+                Spacer()
+
+                Button("替换一个") {
+                    store.replaceOneTranslationMatch()
+                }
+                .disabled(store.selectedDocument == nil || store.replacementSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button("全部替换") {
+                    store.replaceAllTranslationMatches()
+                }
+                .disabled(store.selectedDocument == nil || store.replacementMatchCount == 0)
+            }
+        }
     }
 }
 
@@ -167,6 +228,7 @@ private struct StatusCapsule: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 11)
+        .frame(minWidth: 86, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(AppTheme.graphitePanel)

@@ -45,6 +45,11 @@ final class AppStore {
             UserPreferencesStore.savePreviewCueLimit(previewCueLimit)
         }
     }
+    var colorSchemeMode = UserPreferencesStore.loadColorSchemeMode() {
+        didSet {
+            UserPreferencesStore.saveColorSchemeMode(colorSchemeMode)
+        }
+    }
 
     init(client: any SubtitleTranslationClient = OpenAICompatibleClient()) {
         self.client = client

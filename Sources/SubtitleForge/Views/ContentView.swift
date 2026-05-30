@@ -16,7 +16,7 @@ struct ContentView: View {
 
                 if store.isInspectorPresented {
                     Divider()
-                        .overlay(AppTheme.graphitePanel)
+                        .overlay(AppTheme.divider)
                     InspectorView(store: store)
                         .frame(width: 372)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -55,6 +55,17 @@ struct ContentView: View {
                 TextField("模型", text: $store.settings.model)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 150)
+
+                Picker(selection: $store.colorSchemeMode) {
+                    ForEach(AppColorSchemeMode.allCases) { mode in
+                        Label(mode.displayName, systemImage: mode.systemImage)
+                            .tag(mode)
+                    }
+                } label: {
+                    Label("外观", systemImage: store.colorSchemeMode.systemImage)
+                }
+                .pickerStyle(.menu)
+                .help("切换外观")
 
                 if store.isTranslating {
                     Button {
@@ -96,7 +107,7 @@ struct ContentView: View {
         } message: {
             Text(store.errorMessage ?? "")
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(store.colorSchemeMode.preferredColorScheme)
     }
 
     private var errorBinding: Binding<Bool> {
