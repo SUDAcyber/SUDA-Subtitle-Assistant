@@ -5,18 +5,19 @@ struct InspectorView: View {
     @Bindable var store: AppStore
     @State private var memorySource = ""
     @State private var memoryTarget = ""
-    @State private var memoryNote = "专名"
+    @State private var memoryNote = ""
     @State private var selectedTab: InspectorTab = .model
-    private let targetLanguages = ["简体中文", "繁体中文", "英文", "日文", "韩文", "西班牙文", "法文", "德文", "葡萄牙文", "俄文"]
 
     var body: some View {
+        let strings = store.strings
+
         VStack(spacing: 0) {
             header
                 .padding(.horizontal, 18)
                 .padding(.top, 18)
                 .padding(.bottom, 12)
 
-            InspectorTabBar(selection: $selectedTab)
+            InspectorTabBar(selection: $selectedTab, strings: strings)
                 .padding(.horizontal, 18)
                 .padding(.bottom, 12)
 
@@ -29,8 +30,10 @@ struct InspectorView: View {
     }
 
     private var header: some View {
-        HStack {
-            Text("设置")
+        let strings = store.strings
+
+        return HStack {
+            Text(strings.settings)
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(AppTheme.ivory)
             Spacer()
@@ -40,7 +43,7 @@ struct InspectorView: View {
                 Image(systemName: AppIconSymbol.close)
             }
             .buttonStyle(.borderless)
-            .help("关闭")
+            .help(strings.close)
         }
     }
 
@@ -76,22 +79,33 @@ struct InspectorView: View {
     }
 
     private var appearanceSection: some View {
-        SettingsGroup(title: "外观") {
-            Picker("主题", selection: $store.colorSchemeMode) {
-                ForEach(AppColorSchemeMode.allCases) { mode in
-                    Text(mode.displayName).tag(mode)
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.appearance) {
+            Picker(strings.appLanguage, selection: $store.interfaceLanguage) {
+                ForEach(AppLanguage.allCases) { language in
+                    Text(language.displayName).tag(language)
                 }
             }
             .pickerStyle(.segmented)
 
-            Text("默认跟随 macOS 系统外观 也可以手动固定为浅色或深色")
+            Picker(strings.theme, selection: $store.colorSchemeMode) {
+                ForEach(AppColorSchemeMode.allCases) { mode in
+                    Text(mode.displayName(language: store.interfaceLanguage)).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Text(strings.appearanceHint)
                 .font(.caption)
                 .foregroundStyle(AppTheme.mutedIvory)
         }
     }
 
     private var providerSection: some View {
-        SettingsGroup(title: "接口") {
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.provider) {
             HStack {
                 Button("AIHubMix") {
                     store.applyAIHubMixPreset()
@@ -102,89 +116,102 @@ struct InspectorView: View {
             }
             .buttonStyle(.bordered)
 
-            SettingsField(title: "接口名称") {
-                TextField("接口名称", text: $store.settings.providerName)
+            SettingsField(title: strings.providerName) {
+                TextField(strings.providerName, text: $store.settings.providerName)
             }
 
-            SettingsField(title: "接口地址") {
-                TextField("接口地址", text: $store.settings.baseURL)
+            SettingsField(title: strings.providerURL) {
+                TextField(strings.providerURL, text: $store.settings.baseURL)
                     .textContentType(.URL)
             }
 
-            SettingsField(title: "密钥") {
-                SecureField("密钥", text: $store.apiKey)
+            SettingsField(title: strings.apiKey) {
+                SecureField(strings.apiKey, text: $store.apiKey)
             }
         }
     }
 
     private var modelSection: some View {
-        SettingsGroup(title: "模型") {
-            SettingsField(title: "模型名称") {
-                TextField("模型名称", text: $store.settings.model)
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.model) {
+            SettingsField(title: strings.modelName) {
+                TextField(strings.modelName, text: $store.settings.model)
             }
 
-            Picker("接口模式", selection: $store.settings.endpoint) {
+            Picker(strings.endpointMode, selection: $store.settings.endpoint) {
                 ForEach(TranslationEndpoint.allCases) { endpoint in
-                    Text(endpoint.displayName).tag(endpoint)
+                    Text(strings.endpointName(endpoint)).tag(endpoint)
                 }
             }
             .pickerStyle(.segmented)
 
-            Picker("目标语言", selection: $store.settings.targetLanguage) {
-                ForEach(targetLanguages, id: \.self) {
-                    Text($0).tag($0)
+            Picker(strings.targetLanguage, selection: $store.settings.targetLanguage) {
+                ForEach(strings.targetLanguageOptions, id: \.value) { option in
+                    Text(option.label).tag(option.value)
                 }
             }
 
-            TextField("自定义目标语言", text: $store.settings.targetLanguage)
+            TextField(strings.customTargetLanguage, text: targetLanguageText(strings: strings))
 
-            Picker("推理深度", selection: $store.settings.reasoningEffort) {
+            Picker(strings.reasoningEffort, selection: $store.settings.reasoningEffort) {
                 ForEach(ReasoningEffort.allCases) { effort in
-                    Text(effort.displayName).tag(effort)
+                    Text(strings.reasoningName(effort)).tag(effort)
                 }
             }
 
-            Picker("输出长度", selection: $store.settings.textVerbosity) {
+            Picker(strings.textVerbosity, selection: $store.settings.textVerbosity) {
                 ForEach(TextVerbosity.allCases) { verbosity in
-                    Text(verbosity.displayName).tag(verbosity)
+                    Text(strings.verbosityName(verbosity)).tag(verbosity)
                 }
             }
 
-            Toggle("移除目标标点", isOn: $store.settings.stripTargetPunctuation)
+            Toggle(strings.stripTargetPunctuation, isOn: $store.settings.stripTargetPunctuation)
         }
     }
 
     private var chunkSection: some View {
-        SettingsGroup(title: "分段") {
-            NumericSettingRow(title: "每批条数", suffix: "条", value: $store.settings.chunkCueLimit, range: 1...500, step: 10)
-            NumericSettingRow(title: "字符上限", suffix: "字", value: $store.settings.maxSourceCharacters, range: 500...50_000, step: 500)
-            NumericSettingRow(title: "上下文", suffix: "条", value: $store.settings.contextOverlap, range: 0...50, step: 1)
-            NumericSettingRow(title: "失败重试", suffix: "次", value: $store.settings.retryLimit, range: 0...10, step: 1)
-            NumericSettingRow(title: "预览数量", suffix: "条", value: $store.previewCueLimit, range: 50...20_000, step: 100)
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.chunking) {
+            NumericSettingRow(title: strings.cueLimit, suffix: strings.cueUnit, value: $store.settings.chunkCueLimit, range: 1...500, step: 10)
+            NumericSettingRow(title: strings.characterLimit, suffix: strings.characterUnit, value: $store.settings.maxSourceCharacters, range: 500...50_000, step: 500)
+            NumericSettingRow(title: strings.contextOverlap, suffix: strings.cueUnit, value: $store.settings.contextOverlap, range: 0...50, step: 1)
+            NumericSettingRow(title: strings.retryLimit, suffix: strings.retryUnit, value: $store.settings.retryLimit, range: 0...10, step: 1)
+            NumericSettingRow(title: strings.previewLimit, suffix: strings.cueUnit, value: $store.previewCueLimit, range: 50...20_000, step: 100)
         }
     }
 
+    private func targetLanguageText(strings: AppStrings) -> Binding<String> {
+        Binding(
+            get: { strings.targetLanguageLabel(store.settings.targetLanguage) },
+            set: { store.settings.targetLanguage = $0 }
+        )
+    }
+
     private var memorySection: some View {
-        SettingsGroup(title: "后台记忆库") {
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.backendMemory) {
             HStack {
-                Label("\(store.settings.translationMemory.count) 条固定译法", systemImage: AppIconSymbol.memory)
+                Label(strings.fixedTranslationCount(store.settings.translationMemory.count), systemImage: AppIconSymbol.memory)
                     .foregroundStyle(AppTheme.ivory)
                 Spacer()
-                Text("会随每次翻译一起注入")
+                Text(strings.memoryInjectedHint)
                     .font(.caption)
                     .foregroundStyle(AppTheme.mutedIvory)
             }
 
-            SettingsField(title: "原文或名字") {
-                TextField("例如 Ko Song 或 เซิร์ฟ", text: $memorySource)
+            SettingsField(title: strings.sourceOrName) {
+                TextField(strings.sourcePlaceholder, text: $memorySource)
             }
 
-            SettingsField(title: "固定译法") {
-                TextField("例如 Ko Song 或 Surf", text: $memoryTarget)
+            SettingsField(title: strings.fixedTranslation) {
+                TextField(strings.targetPlaceholder, text: $memoryTarget)
             }
 
-            SettingsField(title: "备注") {
-                TextField("例如 泰语人名", text: $memoryNote)
+            SettingsField(title: strings.note) {
+                TextField(strings.notePlaceholder, text: $memoryNote)
             }
 
             HStack {
@@ -193,19 +220,19 @@ struct InspectorView: View {
                     memorySource = ""
                     memoryTarget = ""
                 } label: {
-                    Label("加入记忆", systemImage: AppIconSymbol.add)
+                    Label(strings.addMemory, systemImage: AppIconSymbol.add)
                 }
 
                 Button {
                     store.restoreDefaultMemoryEntries()
                 } label: {
-                    Label("恢复预置", systemImage: AppIconSymbol.reset)
+                    Label(strings.restorePreset, systemImage: AppIconSymbol.reset)
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(store.settings.translationMemory) { entry in
-                    MemoryEntryRow(entry: entry) {
+                    MemoryEntryRow(entry: entry, strings: strings) {
                         store.removeMemoryEntry(id: entry.id)
                     }
                 }
@@ -214,7 +241,9 @@ struct InspectorView: View {
     }
 
     private var promptSection: some View {
-        SettingsGroup(title: "翻译指令") {
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.translationPrompt) {
             TextEditor(text: $store.settings.promptTemplate)
                 .font(.body)
                 .scrollContentBackground(.hidden)
@@ -228,16 +257,18 @@ struct InspectorView: View {
     }
 
     private var validationSection: some View {
-        SettingsGroup(title: "校验") {
-            LabeledContent("总条数", value: "\(store.validation.totalCues)")
-            LabeledContent("已翻译", value: "\(store.validation.translatedCues)")
-            LabeledContent("缺失", value: "\(store.validation.missingIDs.count)")
-            LabeledContent("重复序号", value: "\(store.validation.duplicateIDs.count)")
+        let strings = store.strings
+
+        return SettingsGroup(title: strings.validation) {
+            LabeledContent(strings.totalCues, value: "\(store.validation.totalCues)")
+            LabeledContent(strings.translated, value: "\(store.validation.translatedCues)")
+            LabeledContent(strings.missing, value: "\(store.validation.missingIDs.count)")
+            LabeledContent(strings.duplicates, value: "\(store.validation.duplicateIDs.count)")
 
             Button(role: .destructive) {
                 store.clearTranslations()
             } label: {
-                Label("清空译文", systemImage: AppIconSymbol.clear)
+                Label(strings.clearTranslations, systemImage: AppIconSymbol.clear)
             }
             .disabled(store.selectedDocument == nil || store.isTranslating)
         }
@@ -251,14 +282,14 @@ private enum InspectorTab: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    func title(strings: AppStrings) -> String {
         switch self {
         case .model:
-            return "模型设置"
+            return strings.modelSettingsTab
         case .memory:
-            return "记忆库"
+            return strings.memoryTab
         case .quality:
-            return "指令校验"
+            return strings.promptValidationTab
         }
     }
 
@@ -276,6 +307,7 @@ private enum InspectorTab: String, CaseIterable, Identifiable {
 
 private struct InspectorTabBar: View {
     @Binding var selection: InspectorTab
+    let strings: AppStrings
 
     var body: some View {
         HStack(spacing: 6) {
@@ -283,7 +315,7 @@ private struct InspectorTabBar: View {
                 Button {
                     selection = tab
                 } label: {
-                    Label(tab.title, systemImage: tab.systemImage)
+                    Label(tab.title(strings: strings), systemImage: tab.systemImage)
                         .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
@@ -299,7 +331,7 @@ private struct InspectorTabBar: View {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .stroke(selection == tab ? AppTheme.divider : .clear, lineWidth: 1)
                 )
-                .help(tab.title)
+                .help(tab.title(strings: strings))
             }
         }
     }
@@ -307,6 +339,7 @@ private struct InspectorTabBar: View {
 
 private struct MemoryEntryRow: View {
     let entry: TranslationMemoryEntry
+    let strings: AppStrings
     let onRemove: () -> Void
 
     var body: some View {
@@ -338,7 +371,7 @@ private struct MemoryEntryRow: View {
             }
             .buttonStyle(.borderless)
             .foregroundStyle(AppTheme.mutedIvory)
-            .help("移除")
+            .help(strings.remove)
         }
         .padding(.vertical, 5)
         .padding(.horizontal, 8)
@@ -390,7 +423,7 @@ private struct NumericSettingRow: View {
         HStack(spacing: 8) {
             Text(title)
                 .foregroundStyle(AppTheme.ivory)
-                .frame(width: 76, alignment: .leading)
+                .frame(width: 118, alignment: .leading)
 
             TextField("", value: boundedValue, format: .number)
                 .textFieldStyle(.roundedBorder)

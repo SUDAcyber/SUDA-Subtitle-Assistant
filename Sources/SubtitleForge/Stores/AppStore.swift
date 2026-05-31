@@ -33,6 +33,14 @@ final class AppStore {
             keychain.saveAPIKey(apiKey)
         }
     }
+    var interfaceLanguage = UserPreferencesStore.loadInterfaceLanguage() {
+        didSet {
+            UserPreferencesStore.saveInterfaceLanguage(interfaceLanguage)
+            if progress.phase == .idle {
+                progress.message = strings.idle
+            }
+        }
+    }
     var progress = TranslationProgress()
     var validation = ValidationReport()
     var errorMessage: String?
@@ -54,11 +62,16 @@ final class AppStore {
     init(client: any SubtitleTranslationClient = OpenAICompatibleClient()) {
         self.client = client
         self.apiKey = keychain.loadAPIKey()
+        self.progress.message = strings.idle
         emptyExpiredTrash()
         self.selectedDocumentID = activeDocuments.first?.id ?? trashedDocuments.first?.id
         if let selectedDocument {
             self.validation = ValidationReport.make(cues: selectedDocument.cues)
         }
+    }
+
+    var strings: AppStrings {
+        AppStrings(language: interfaceLanguage)
     }
 
     var selectedDocument: SubtitleDocument? {
@@ -128,8 +141,8 @@ final class AppStore {
         panel.allowedContentTypes = [.srtSubtitle, .plainText]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.prompt = "导入"
-        panel.message = "选择一个或多个 SRT 字幕文件"
+        panel.prompt = strings.importAction
+        panel.message = strings.selectSubtitleFiles
 
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
@@ -142,7 +155,7 @@ final class AppStore {
     }
 
     func importFile(url: URL) throws {
-        progress = TranslationProgress(phase: .parsing, message: "正在解析")
+        progress = TranslationProgress(phase: .parsing, message: strings.parsing)
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
         let text = try TextFileDecoder.decode(data)
         let cues = try SRTParser.parse(text)
@@ -156,7 +169,7 @@ final class AppStore {
         documents.insert(document, at: 0)
         selectedDocumentID = document.id
         validation = ValidationReport.make(cues: cues)
-        progress = TranslationProgress(phase: .idle, message: "已导入 \(cues.count) 条")
+        progress = TranslationProgress(phase: .idle, message: strings.imported(count: cues.count))
     }
 
     func importDroppedProviders(_ providers: [NSItemProvider]) -> Bool {
@@ -176,11 +189,11 @@ final class AppStore {
                         return
                     }
                     guard let url = droppedURL else {
-                        self.errorMessage = "无法读取拖入的文件"
+                        self.errorMessage = self.strings.unreadableDroppedFile
                         return
                     }
                     guard url.pathExtension.lowercased() == "srt" else {
-                        self.errorMessage = "目前只支持拖入 SRT 字幕文件"
+                        self.errorMessage = self.strings.onlySRTDrop
                         return
                     }
 
@@ -199,11 +212,11 @@ final class AppStore {
     func translateSelected() {
         guard !isTranslating else { return }
         guard let document = selectedDocument else {
-            errorMessage = "请先导入字幕文件"
+            errorMessage = strings.importFileFirst
             return
         }
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            errorMessage = "请先在右侧填写密钥"
+            errorMessage = strings.fillAPIKey
             isInspectorPresented = true
             return
         }
@@ -226,7 +239,7 @@ final class AppStore {
     func cancelTranslation() {
         translationTask?.cancel()
         translationTask = nil
-        progress = TranslationProgress(phase: .cancelled, message: "已停止")
+        progress = TranslationProgress(phase: .cancelled, message: strings.stopped)
     }
 
     func clearTranslations() {
@@ -238,7 +251,7 @@ final class AppStore {
         documents[index].generatedURL = nil
         documents[index].reviewCueIDs = []
         validation = ValidationReport.make(cues: documents[index].cues)
-        progress = TranslationProgress(phase: .idle, message: "译文已清空")
+        progress = TranslationProgress(phase: .idle, message: strings.translationsCleared)
     }
 
     func moveSelectedToTrash() {
@@ -252,7 +265,7 @@ final class AppStore {
         if selectedDocumentID == id {
             selectedDocumentID = activeDocuments.first?.id ?? trashedDocuments.first?.id
         }
-        progress = TranslationProgress(phase: .idle, message: "已移到回收箱")
+        progress = TranslationProgress(phase: .idle, message: strings.movedToTrash)
     }
 
     func restoreDocument(id: UUID) {
@@ -260,7 +273,7 @@ final class AppStore {
         documents[index].deletedAt = nil
         selectedDocumentID = id
         validation = ValidationReport.make(cues: documents[index].cues)
-        progress = TranslationProgress(phase: .idle, message: "已恢复")
+        progress = TranslationProgress(phase: .idle, message: strings.restored)
     }
 
     func permanentlyDeleteDocument(id: UUID) {
@@ -268,7 +281,7 @@ final class AppStore {
         if selectedDocumentID == id {
             selectedDocumentID = activeDocuments.first?.id ?? trashedDocuments.first?.id
         }
-        progress = TranslationProgress(phase: .idle, message: "已永久删除")
+        progress = TranslationProgress(phase: .idle, message: strings.permanentlyDeleted)
     }
 
     func emptyExpiredTrash(now: Date = Date()) {
@@ -281,12 +294,12 @@ final class AppStore {
 
     func replaceOneTranslationMatch() {
         guard let documentIndex = selectedDocumentIndex else {
-            errorMessage = "请先导入字幕文件"
+            errorMessage = strings.importFileFirst
             return
         }
         let needle = replacementSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else {
-            errorMessage = "请先输入要查找的译文"
+            errorMessage = strings.enterSearchText
             return
         }
 
@@ -303,21 +316,21 @@ final class AppStore {
 
             documents[documentIndex].cues[cueIndex].translation = updated
             refreshValidation(for: documents[documentIndex].id)
-            progress = TranslationProgress(phase: .idle, message: "已替换 1 处")
+            progress = TranslationProgress(phase: .idle, message: strings.replacedOne())
             return
         }
 
-        errorMessage = "没有找到匹配译文"
+        errorMessage = strings.noTranslationMatch
     }
 
     func replaceAllTranslationMatches() {
         guard let documentIndex = selectedDocumentIndex else {
-            errorMessage = "请先导入字幕文件"
+            errorMessage = strings.importFileFirst
             return
         }
         let needle = replacementSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else {
-            errorMessage = "请先输入要查找的译文"
+            errorMessage = strings.enterSearchText
             return
         }
 
@@ -337,14 +350,14 @@ final class AppStore {
         }
 
         refreshValidation(for: documents[documentIndex].id)
-        progress = TranslationProgress(phase: .idle, message: replacements > 0 ? "已替换 \(replacements) 处" : "没有找到匹配译文")
+        progress = TranslationProgress(phase: .idle, message: strings.replacedAll(replacements))
     }
 
     func addMemoryEntry(source: String, target: String, note: String = "") {
         let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedTarget = target.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSource.isEmpty, !trimmedTarget.isEmpty else {
-            errorMessage = "记忆库需要同时填写原文和固定译法"
+            errorMessage = strings.memoryNeedsSourceAndTarget
             return
         }
 
@@ -376,13 +389,13 @@ final class AppStore {
 
     func exportSelectedWithPanel() {
         guard let document = selectedDocument else {
-            errorMessage = "没有可导出的字幕"
+            errorMessage = strings.noExportableSubtitle
             return
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.srtSubtitle]
         panel.nameFieldStringValue = "\(document.name)-\(settings.targetLanguage).srt"
-        panel.prompt = "导出"
+        panel.prompt = strings.export
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
@@ -391,7 +404,7 @@ final class AppStore {
             if let index = selectedDocumentIndex {
                 documents[index].generatedURL = url
             }
-            progress = TranslationProgress(phase: .finished, message: "已导出")
+            progress = TranslationProgress(phase: .finished, message: strings.exported)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -399,12 +412,14 @@ final class AppStore {
 
     func exportSelectedToSourceFolder() {
         guard let index = selectedDocumentIndex else {
-            errorMessage = "没有可导出的字幕"
+            errorMessage = strings.noExportableSubtitle
             return
         }
         do {
             let url = try writeVersionToSourceFolder(documentIndex: index)
-            progress = TranslationProgress(phase: .finished, message: "已生成 \(url.lastPathComponent)")
+            progress = TranslationProgress(phase: .finished, message: strings.generated(url.lastPathComponent))
+        } catch ExportError.missingSourceFolder {
+            errorMessage = strings.missingSourceFolder
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -424,7 +439,7 @@ final class AppStore {
         )
 
         guard !batches.isEmpty else {
-            progress = TranslationProgress(phase: .failed, message: "没有可翻译的字幕")
+            progress = TranslationProgress(phase: .failed, message: strings.noTranslatableSubtitles)
             return
         }
 
@@ -432,7 +447,7 @@ final class AppStore {
             phase: .translating,
             currentBatch: 0,
             totalBatches: batches.count,
-            message: "开始翻译"
+            message: strings.startTranslating
         )
 
         do {
@@ -448,7 +463,7 @@ final class AppStore {
                     phase: .validating,
                     currentBatch: batch.batchNumber,
                     totalBatches: batches.count,
-                    message: "校验第 \(batch.batchNumber)/\(batches.count) 批"
+                    message: strings.validating(batch: batch.batchNumber, total: batches.count)
                 )
                 refreshValidation(for: documentID)
                 progress.phase = .translating
@@ -456,11 +471,11 @@ final class AppStore {
 
             refreshValidation(for: documentID)
             markReviewWarnings(for: documentID, settings: settings)
-            var completionMessage = validation.isComplete ? "翻译完成" : "完成但仍有缺失"
+            var completionMessage = validation.isComplete ? strings.translationComplete : strings.finishedWithMissing
             if validation.isComplete,
                let index = documents.firstIndex(where: { $0.id == documentID }),
                let url = try? writeVersionToSourceFolder(documentIndex: index) {
-                completionMessage = "翻译完成 已生成 \(url.lastPathComponent)"
+                completionMessage = strings.completeGenerated(url.lastPathComponent)
             }
             progress = TranslationProgress(
                 phase: .finished,
@@ -469,9 +484,9 @@ final class AppStore {
                 message: completionMessage
             )
         } catch is CancellationError {
-            progress = TranslationProgress(phase: .cancelled, message: "已停止")
+            progress = TranslationProgress(phase: .cancelled, message: strings.stopped)
         } catch {
-            progress = TranslationProgress(phase: .failed, message: "失败")
+            progress = TranslationProgress(phase: .failed, message: strings.failed)
             errorMessage = error.localizedDescription
         }
     }
@@ -491,8 +506,8 @@ final class AppStore {
                     currentBatch: batch.batchNumber - 1,
                     totalBatches: batch.totalBatches,
                     message: attempt == 0
-                        ? "翻译第 \(batch.batchNumber)/\(batch.totalBatches) 批"
-                        : "重试第 \(batch.batchNumber) 批 \(attempt)/\(attempts)"
+                        ? strings.translating(batch: batch.batchNumber, total: batch.totalBatches)
+                        : strings.retrying(batch: batch.batchNumber, attempt: attempt, totalAttempts: attempts)
                 )
                 return try await client.translate(batch: batch, settings: settings, apiKey: apiKey)
             } catch {

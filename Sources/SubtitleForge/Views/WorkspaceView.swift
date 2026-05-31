@@ -26,6 +26,8 @@ private struct JobHeaderView: View {
     let document: SubtitleDocument
 
     var body: some View {
+        let strings = store.strings
+
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 22) {
                 VStack(alignment: .leading, spacing: 5) {
@@ -33,18 +35,18 @@ private struct JobHeaderView: View {
                         .font(.title2.weight(.semibold))
                         .foregroundStyle(AppTheme.ivory)
                         .lineLimit(1)
-                    Text("\(document.cues.count) 条 · \(document.targetLanguage)")
+                    Text("\(strings.cueCount(document.cues.count)) · \(strings.targetLanguageLabel(document.targetLanguage))")
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.mutedIvory)
 
                     if let generatedURL = document.generatedURL {
-                        Label("已生成 \(generatedURL.lastPathComponent)", systemImage: AppIconSymbol.completed)
+                        Label(strings.generated(generatedURL.lastPathComponent), systemImage: AppIconSymbol.completed)
                             .font(.caption)
                             .foregroundStyle(AppTheme.success)
                             .lineLimit(1)
                     }
                     if document.hasReviewWarnings {
-                        Label("有 \(document.reviewCueIDs.count) 条疑似人名需要检查", systemImage: AppIconSymbol.reviewWarning)
+                        Label(strings.reviewWarnings(document.reviewCueIDs.count), systemImage: AppIconSymbol.reviewWarning)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(AppTheme.warning)
                     }
@@ -55,13 +57,13 @@ private struct JobHeaderView: View {
             }
 
             HStack(alignment: .center, spacing: 12) {
-                StatusCapsule(title: "批次", value: batchText)
-                StatusCapsule(title: "校验", value: store.validation.summary, accent: store.validation.isComplete ? AppTheme.success : AppTheme.brass)
-                StatusCapsule(title: "进度", value: "\(Int(document.completionFraction * 100))%")
+                StatusCapsule(title: strings.batch, value: batchText)
+                StatusCapsule(title: strings.validation, value: strings.validationSummary(store.validation), accent: store.validation.isComplete ? AppTheme.success : AppTheme.brass)
+                StatusCapsule(title: strings.progress, value: "\(Int(document.completionFraction * 100))%")
 
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("任务进度")
+                        Text(strings.taskProgress)
                         Spacer()
                         Text(store.progress.message)
                             .lineLimit(1)
@@ -81,12 +83,14 @@ private struct JobHeaderView: View {
     }
 
     private var actionButtons: some View {
-        HStack(spacing: 10) {
+        let strings = store.strings
+
+        return HStack(spacing: 10) {
             if store.isTranslating {
                 Button {
                     store.cancelTranslation()
                 } label: {
-                    Label("停止任务", systemImage: AppIconSymbol.stop)
+                    Label(strings.stopTask, systemImage: AppIconSymbol.stop)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(AppTheme.warning)
@@ -94,7 +98,7 @@ private struct JobHeaderView: View {
                 Button {
                     store.translateSelected()
                 } label: {
-                    Label("开始任务", systemImage: AppIconSymbol.translate)
+                    Label(strings.startTranslation, systemImage: AppIconSymbol.translate)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(AppTheme.brass)
@@ -104,7 +108,7 @@ private struct JobHeaderView: View {
             Button {
                 store.exportSelectedToSourceFolder()
             } label: {
-                Label("生成字幕", systemImage: AppIconSymbol.generate)
+                Label(strings.generateSubtitle, systemImage: AppIconSymbol.generate)
             }
             .buttonStyle(.bordered)
             .disabled(document.translatedCount == 0 || document.isDeleted)
@@ -112,7 +116,7 @@ private struct JobHeaderView: View {
             Button {
                 store.exportSelectedWithPanel()
             } label: {
-                Label("另存为", systemImage: AppIconSymbol.export)
+                Label(strings.saveAs, systemImage: AppIconSymbol.export)
             }
             .buttonStyle(.bordered)
             .disabled(document.translatedCount == 0 || document.isDeleted)
@@ -131,78 +135,80 @@ private struct FindReplaceToolbar: View {
     @Bindable var store: AppStore
 
     var body: some View {
+        let strings = store.strings
+
         ViewThatFits(in: .horizontal) {
-            horizontalLayout
-            compactLayout
+            horizontalLayout(strings: strings)
+            compactLayout(strings: strings)
         }
         .padding(.horizontal, 26)
         .padding(.vertical, 12)
         .background(AppTheme.graphiteRaised.opacity(0.76))
     }
 
-    private var horizontalLayout: some View {
+    private func horizontalLayout(strings: AppStrings) -> some View {
         HStack(spacing: 10) {
             Image(systemName: AppIconSymbol.search)
                 .foregroundStyle(AppTheme.mutedIvory)
 
-            TextField("查找译文", text: $store.replacementSearchText)
+            TextField(strings.searchTranslation, text: $store.replacementSearchText)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 160)
 
-            TextField("替换为", text: $store.replacementText)
+            TextField(strings.replaceWith, text: $store.replacementText)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 160)
 
-            Toggle("区分大小写", isOn: $store.replacementMatchCase)
+            Toggle(strings.matchCase, isOn: $store.replacementMatchCase)
                 .toggleStyle(.checkbox)
 
-            Text("\(store.replacementMatchCount) 处")
+            Text(strings.matchCount(store.replacementMatchCount))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(store.replacementMatchCount > 0 ? AppTheme.brass : AppTheme.mutedIvory)
                 .frame(width: 48, alignment: .trailing)
 
-            Button("替换一个") {
+            Button(strings.replaceOne) {
                 store.replaceOneTranslationMatch()
             }
             .disabled(store.selectedDocument == nil || store.replacementSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-            Button("全部替换") {
+            Button(strings.replaceAll) {
                 store.replaceAllTranslationMatches()
             }
             .disabled(store.selectedDocument == nil || store.replacementMatchCount == 0)
         }
     }
 
-    private var compactLayout: some View {
+    private func compactLayout(strings: AppStrings) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("查找替换译文", systemImage: AppIconSymbol.replace)
+                Label(strings.findReplaceTranslation, systemImage: AppIconSymbol.replace)
                     .foregroundStyle(AppTheme.mutedIvory)
                 Spacer()
-                Text("\(store.replacementMatchCount) 处")
+                Text(strings.matchCount(store.replacementMatchCount))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(store.replacementMatchCount > 0 ? AppTheme.brass : AppTheme.mutedIvory)
             }
 
             HStack(spacing: 10) {
-                TextField("查找译文", text: $store.replacementSearchText)
+                TextField(strings.searchTranslation, text: $store.replacementSearchText)
                     .textFieldStyle(.roundedBorder)
-                TextField("替换为", text: $store.replacementText)
+                TextField(strings.replaceWith, text: $store.replacementText)
                     .textFieldStyle(.roundedBorder)
             }
 
             HStack(spacing: 10) {
-                Toggle("区分大小写", isOn: $store.replacementMatchCase)
+                Toggle(strings.matchCase, isOn: $store.replacementMatchCase)
                     .toggleStyle(.checkbox)
 
                 Spacer()
 
-                Button("替换一个") {
+                Button(strings.replaceOne) {
                     store.replaceOneTranslationMatch()
                 }
                 .disabled(store.selectedDocument == nil || store.replacementSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                Button("全部替换") {
+                Button(strings.replaceAll) {
                     store.replaceAllTranslationMatches()
                 }
                 .disabled(store.selectedDocument == nil || store.replacementMatchCount == 0)
@@ -243,12 +249,12 @@ private struct SubtitlePreviewView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 1) {
-                HeaderRow()
+                HeaderRow(strings: store.strings)
                 ForEach(Array(document.cues.prefix(store.previewCueLimit))) { cue in
-                    SubtitleCueRow(cue: cue, needsReview: document.reviewCueIDs.contains(cue.sequence))
+                    SubtitleCueRow(cue: cue, needsReview: document.reviewCueIDs.contains(cue.sequence), strings: store.strings)
                 }
                 if document.cues.count > store.previewCueLimit {
-                    Text("已为界面性能限制预览前 \(store.previewCueLimit) 条 导出仍包含全部 \(document.cues.count) 条")
+                    Text(store.strings.previewLimited(limit: store.previewCueLimit, total: document.cues.count))
                         .font(.caption)
                         .foregroundStyle(AppTheme.mutedIvory)
                         .padding(.vertical, 18)
@@ -260,13 +266,15 @@ private struct SubtitlePreviewView: View {
 }
 
 private struct HeaderRow: View {
+    let strings: AppStrings
+
     var body: some View {
         HStack(spacing: 14) {
-            Text("ID / 时间轴")
+            Text(strings.idTimeline)
                 .frame(width: 168, alignment: .leading)
-            Text("原文")
+            Text(strings.source)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text("译文")
+            Text(strings.translation)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .font(.caption.weight(.semibold))
@@ -279,6 +287,7 @@ private struct HeaderRow: View {
 private struct SubtitleCueRow: View {
     let cue: SubtitleCue
     let needsReview: Bool
+    let strings: AppStrings
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -291,7 +300,7 @@ private struct SubtitleCueRow: View {
                     .foregroundStyle(AppTheme.mutedIvory)
                     .textSelection(.enabled)
                 if needsReview {
-                    Label("检查人名", systemImage: AppIconSymbol.reviewWarning)
+                    Label(strings.reviewName, systemImage: AppIconSymbol.reviewWarning)
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(AppTheme.warning)
                 }
@@ -304,7 +313,7 @@ private struct SubtitleCueRow: View {
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(cue.translation?.isEmpty == false ? cue.translation ?? "" : "待翻译")
+            Text(cue.translation?.isEmpty == false ? cue.translation ?? "" : strings.pendingTranslation)
                 .font(.body)
                 .foregroundStyle(cue.hasTranslation ? AppTheme.ivory : AppTheme.blueSlate)
                 .textSelection(.enabled)
@@ -333,22 +342,24 @@ private struct EmptyStateView: View {
     @Bindable var store: AppStore
 
     var body: some View {
+        let strings = store.strings
+
         VStack(alignment: .leading, spacing: 22) {
             Image(systemName: AppIconSymbol.emptyState)
                 .font(.system(size: 44))
                 .foregroundStyle(AppTheme.brass)
             VStack(alignment: .leading, spacing: 8) {
-                Text("导入 SRT")
+                Text(strings.emptyTitle)
                     .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(AppTheme.ivory)
-                Text("本地锁定序号和时间轴 分批翻译后再重建字幕")
+                Text(strings.emptySubtitle)
                     .font(.title3)
                     .foregroundStyle(AppTheme.mutedIvory)
             }
             Button {
                 store.importWithPanel()
             } label: {
-                Label("选择字幕文件", systemImage: AppIconSymbol.importFile)
+                Label(strings.chooseSubtitleFile, systemImage: AppIconSymbol.importFile)
             }
             .buttonStyle(.borderedProminent)
             .tint(AppTheme.brass)
