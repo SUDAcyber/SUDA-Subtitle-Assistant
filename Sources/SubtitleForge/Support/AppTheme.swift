@@ -8,17 +8,6 @@ enum AppColorSchemeMode: String, CaseIterable, Codable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
-        switch self {
-        case .system:
-            return "跟随系统"
-        case .light:
-            return "浅色"
-        case .dark:
-            return "深色"
-        }
-    }
-
     var systemImage: String {
         switch self {
         case .system:
@@ -28,6 +17,10 @@ enum AppColorSchemeMode: String, CaseIterable, Codable, Identifiable {
         case .dark:
             return AppIconSymbol.appearanceDark
         }
+    }
+
+    func displayName(language: AppLanguage) -> String {
+        AppStrings(language: language).colorSchemeName(self)
     }
 
     var preferredColorScheme: ColorScheme? {

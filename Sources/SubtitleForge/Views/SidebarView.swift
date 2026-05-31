@@ -4,11 +4,13 @@ struct SidebarView: View {
     @Bindable var store: AppStore
 
     var body: some View {
+        let strings = store.strings
+
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: AppIconSymbol.app)
                     .foregroundStyle(AppTheme.brass)
-                Text("项目管理")
+                Text(strings.projectManagement)
                     .font(.headline.weight(.semibold))
                 Spacer()
                 Button {
@@ -17,7 +19,7 @@ struct SidebarView: View {
                     Image(systemName: AppIconSymbol.trash)
                 }
                 .buttonStyle(.borderless)
-                .help("移到回收箱")
+                .help(strings.moveToTrash)
                 .disabled(store.selectedDocument?.isDeleted != false)
 
                 Button {
@@ -26,18 +28,18 @@ struct SidebarView: View {
                     Image(systemName: AppIconSymbol.quickAdd)
                 }
                 .buttonStyle(.borderless)
-                .help("导入")
+                .help(strings.importAction)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
 
             List(selection: $store.selectedDocumentID) {
-                Section("历史记录") {
+                Section(strings.history) {
                     ForEach(store.activeDocuments) { document in
-                        DocumentRow(document: document)
+                        DocumentRow(document: document, strings: strings)
                             .tag(document.id)
                             .contextMenu {
-                                Button("移到回收箱", role: .destructive) {
+                                Button(strings.moveToTrash, role: .destructive) {
                                     store.moveDocumentToTrash(id: document.id)
                                 }
                             }
@@ -45,9 +47,9 @@ struct SidebarView: View {
                 }
 
                 if !store.trashedDocuments.isEmpty {
-                    Section("回收箱") {
+                    Section(strings.trash) {
                         ForEach(store.trashedDocuments) { document in
-                            TrashDocumentRow(document: document, store: store)
+                            TrashDocumentRow(document: document, store: store, strings: strings)
                                 .tag(document.id)
                         }
                     }
@@ -62,7 +64,7 @@ struct SidebarView: View {
                     Text(store.progress.message)
                         .lineLimit(1)
                     Spacer()
-                    Text(store.validation.summary)
+                    Text(strings.validationSummary(store.validation))
                         .foregroundStyle(store.validation.isComplete ? AppTheme.success : AppTheme.mutedIvory)
                 }
                 .font(.caption)
@@ -75,6 +77,7 @@ struct SidebarView: View {
 
 private struct DocumentRow: View {
     let document: SubtitleDocument
+    let strings: AppStrings
 
     var body: some View {
         HStack(spacing: 9) {
@@ -86,7 +89,7 @@ private struct DocumentRow: View {
                 Text(document.name)
                     .font(.callout.weight(.medium))
                     .lineLimit(1)
-                Text("\(document.cues.count) 条 · \(document.displayByteSize)")
+                Text(strings.cueCountWithSize(count: document.cues.count, size: document.displayByteSize))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -109,6 +112,7 @@ private struct DocumentRow: View {
 private struct TrashDocumentRow: View {
     let document: SubtitleDocument
     @Bindable var store: AppStore
+    let strings: AppStrings
 
     var body: some View {
         HStack(spacing: 9) {
@@ -120,7 +124,7 @@ private struct TrashDocumentRow: View {
                 Text(document.name)
                     .font(.callout.weight(.medium))
                     .lineLimit(1)
-                Text("15 天后自动删除")
+                Text(strings.autoDelete15Days)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -133,7 +137,7 @@ private struct TrashDocumentRow: View {
                 Image(systemName: AppIconSymbol.restore)
             }
             .buttonStyle(.borderless)
-            .help("恢复")
+            .help(strings.restore)
 
             Button {
                 store.permanentlyDeleteDocument(id: document.id)
@@ -141,7 +145,7 @@ private struct TrashDocumentRow: View {
                 Image(systemName: AppIconSymbol.deleteForever)
             }
             .buttonStyle(.borderless)
-            .help("永久删除")
+            .help(strings.permanentlyDelete)
         }
         .padding(.vertical, 3)
     }

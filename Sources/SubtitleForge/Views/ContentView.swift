@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -6,6 +7,8 @@ struct ContentView: View {
     @State private var isFileDropTargeted = false
 
     var body: some View {
+        let strings = store.strings
+
         NavigationSplitView {
             SidebarView(store: store)
                 .navigationSplitViewColumnWidth(min: 230, ideal: 270, max: 340)
@@ -25,7 +28,7 @@ struct ContentView: View {
             .background(AppTheme.graphite)
             .overlay {
                 if isFileDropTargeted {
-                    FileDropOverlay()
+                    FileDropOverlay(strings: strings)
                         .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 }
             }
@@ -40,74 +43,75 @@ struct ContentView: View {
                 Button {
                     store.importWithPanel()
                 } label: {
-                    Label("导入", systemImage: AppIconSymbol.importFile)
+                    Label(strings.importAction, systemImage: AppIconSymbol.importFile)
                 }
-                .help("导入 SRT")
+                .help(strings.importSRT)
 
-                Picker("目标语言", selection: $store.settings.targetLanguage) {
-                    ForEach(["简体中文", "繁体中文", "英文", "日文", "韩文", "西班牙文", "法文", "德文"], id: \.self) {
-                        Text($0).tag($0)
+                Picker(strings.targetLanguage, selection: $store.settings.targetLanguage) {
+                    ForEach(strings.targetLanguageOptions, id: \.value) { option in
+                        Text(option.label).tag(option.value)
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 118)
+                .frame(width: store.interfaceLanguage == .english ? 150 : 118)
 
-                TextField("模型", text: $store.settings.model)
+                TextField(strings.model, text: $store.settings.model)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 150)
 
                 Picker(selection: $store.colorSchemeMode) {
                     ForEach(AppColorSchemeMode.allCases) { mode in
-                        Label(mode.displayName, systemImage: mode.systemImage)
+                        Label(mode.displayName(language: store.interfaceLanguage), systemImage: mode.systemImage)
                             .tag(mode)
                     }
                 } label: {
-                    Label("外观", systemImage: store.colorSchemeMode.systemImage)
+                    Label(strings.appearance, systemImage: store.colorSchemeMode.systemImage)
                 }
                 .pickerStyle(.menu)
-                .help("切换外观")
+                .help(strings.switchAppearance)
 
                 if store.isTranslating {
                     Button {
                         store.cancelTranslation()
                     } label: {
-                        Label("停止", systemImage: AppIconSymbol.stop)
+                        Label(strings.stop, systemImage: AppIconSymbol.stop)
                     }
-                    .help("停止翻译")
+                    .help(strings.stopTranslation)
                 } else {
                     Button {
                         store.translateSelected()
                     } label: {
-                        Label("翻译", systemImage: AppIconSymbol.translate)
+                        Label(strings.translate, systemImage: AppIconSymbol.translate)
                     }
-                    .help("开始翻译")
+                    .help(strings.startTranslation)
                     .disabled(!store.canTranslate)
                 }
 
                 Button {
                     store.exportSelectedWithPanel()
                 } label: {
-                    Label("导出", systemImage: AppIconSymbol.export)
+                    Label(strings.export, systemImage: AppIconSymbol.export)
                 }
-                .help("导出 SRT")
+                .help(strings.exportSRT)
                 .disabled(store.selectedDocument == nil)
 
                 Button {
                     store.isInspectorPresented.toggle()
                 } label: {
-                    Label("设置", systemImage: AppIconSymbol.inspector)
+                    Label(strings.settings, systemImage: AppIconSymbol.inspector)
                 }
-                .help("显示或隐藏设置")
+                .help(strings.showHideSettings)
             }
         }
-        .alert("需要处理一下", isPresented: errorBinding) {
-            Button("知道了") {
+        .alert(strings.alertTitle, isPresented: errorBinding) {
+            Button(strings.ok) {
                 store.errorMessage = nil
             }
         } message: {
             Text(store.errorMessage ?? "")
         }
         .preferredColorScheme(store.colorSchemeMode.preferredColorScheme)
+        .background(WindowTitleUpdater(title: strings.appName))
     }
 
     private var errorBinding: Binding<Bool> {
@@ -118,16 +122,38 @@ struct ContentView: View {
     }
 }
 
+private struct WindowTitleUpdater: NSViewRepresentable {
+    let title: String
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        updateTitle(for: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        updateTitle(for: nsView)
+    }
+
+    private func updateTitle(for view: NSView) {
+        DispatchQueue.main.async {
+            view.window?.title = title
+        }
+    }
+}
+
 private struct FileDropOverlay: View {
+    let strings: AppStrings
+
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: AppIconSymbol.addFile)
                 .font(.system(size: 34, weight: .medium))
                 .foregroundStyle(AppTheme.brass)
-            Text("松开以导入 SRT")
+            Text(strings.dropToImport)
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(AppTheme.ivory)
-            Text("支持一次拖入多个字幕文件")
+            Text(strings.dropMultipleFiles)
                 .font(.callout)
                 .foregroundStyle(AppTheme.mutedIvory)
         }

@@ -7,26 +7,28 @@ struct SubtitleForgeApp: App {
     @State private var store = AppStore()
 
     var body: some Scene {
-        WindowGroup("SUDA字幕翻译助手", id: "main") {
+        let strings = store.strings
+
+        WindowGroup(strings.appName, id: "main") {
             ContentView(store: store)
                 .frame(minWidth: 1180, minHeight: 760)
         }
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("导入 SRT...") {
+                Button(strings.importSRTCommand) {
                     store.importWithPanel()
                 }
                 .keyboardShortcut("o", modifiers: [.command])
             }
 
-            CommandMenu("字幕") {
-                Button("开始翻译") {
+            CommandMenu(strings.subtitleMenu) {
+                Button(strings.startTranslation) {
                     store.translateSelected()
                 }
                 .keyboardShortcut(.return, modifiers: [.command])
                 .disabled(!store.canTranslate)
 
-                Button("停止翻译") {
+                Button(strings.stopTranslation) {
                     store.cancelTranslation()
                 }
                 .keyboardShortcut(".", modifiers: [.command])
@@ -34,7 +36,7 @@ struct SubtitleForgeApp: App {
 
                 Divider()
 
-                Button("导出 SRT...") {
+                Button(strings.exportSRTCommand) {
                     store.exportSelectedWithPanel()
                 }
                 .keyboardShortcut("e", modifiers: [.command])
