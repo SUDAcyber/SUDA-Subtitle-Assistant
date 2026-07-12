@@ -1,5 +1,14 @@
 import Foundation
 
+public enum TranslationProvider: String, CaseIterable, Codable, Identifiable, Sendable {
+    case relay
+    case openRouter
+    case openAI
+    case anthropic
+
+    public var id: String { rawValue }
+}
+
 public enum TranslationEndpoint: String, CaseIterable, Codable, Identifiable, Sendable {
     case chatCompletions
     case responses
@@ -82,6 +91,7 @@ public struct TranslationMemoryEntry: Codable, Equatable, Hashable, Identifiable
 }
 
 public struct TranslationSettings: Codable, Equatable, Sendable {
+    public var provider: TranslationProvider
     public var providerName: String
     public var baseURL: String
     public var model: String
@@ -104,9 +114,10 @@ public struct TranslationSettings: Codable, Equatable, Sendable {
     public var translationMemory: [TranslationMemoryEntry]
 
     public init(
-        providerName: String = "AIHubMix",
-        baseURL: String = "https://aihubmix.com/v1",
-        model: String = "gpt-5.6-luna",
+        provider: TranslationProvider = .relay,
+        providerName: String = "中转服务",
+        baseURL: String = "",
+        model: String = "",
         endpoint: TranslationEndpoint = .chatCompletions,
         targetLanguage: String = "简体中文",
         reasoningEffort: ReasoningEffort = .low,
@@ -125,6 +136,7 @@ public struct TranslationSettings: Codable, Equatable, Sendable {
         promptTemplate: String = TranslationSettings.defaultPrompt,
         translationMemory: [TranslationMemoryEntry] = TranslationSettings.defaultTranslationMemory
     ) {
+        self.provider = provider
         self.providerName = providerName
         self.baseURL = baseURL
         self.model = model
@@ -148,6 +160,7 @@ public struct TranslationSettings: Codable, Equatable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey {
+        case provider
         case providerName
         case baseURL
         case model
@@ -172,8 +185,10 @@ public struct TranslationSettings: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.providerName = try container.decodeIfPresent(String.self, forKey: .providerName) ?? "AIHubMix"
-        self.baseURL = try container.decodeIfPresent(String.self, forKey: .baseURL) ?? "https://aihubmix.com/v1"
+        self.providerName = try container.decodeIfPresent(String.self, forKey: .providerName) ?? "中转服务"
+        self.baseURL = try container.decodeIfPresent(String.self, forKey: .baseURL) ?? ""
+        self.provider = try container.decodeIfPresent(TranslationProvider.self, forKey: .provider)
+            ?? (providerName.lowercased() == "openai" ? .openAI : .relay)
         self.model = try container.decodeIfPresent(String.self, forKey: .model) ?? "gpt-5.6-luna"
         self.endpoint = try container.decodeIfPresent(TranslationEndpoint.self, forKey: .endpoint) ?? .chatCompletions
         self.targetLanguage = try container.decodeIfPresent(String.self, forKey: .targetLanguage) ?? "简体中文"

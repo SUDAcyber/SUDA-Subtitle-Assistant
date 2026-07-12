@@ -86,7 +86,7 @@ final class AppStore {
         }
     }
 
-    init(client: any SubtitleTranslationClient = OpenAICompatibleClient()) {
+    init(client: any SubtitleTranslationClient = RoutingTranslationClient()) {
         self.client = client
         self.apiKey = keychain.loadAPIKey()
         self.scribeAPIKey = scribeKeychain.loadAPIKey()
@@ -162,22 +162,26 @@ final class AppStore {
         keychain.saveAPIKey(apiKey)
     }
 
-    func applyAIHubMixPreset() {
-        settings.providerName = "AIHubMix"
-        settings.baseURL = "https://aihubmix.com/v1"
-        if settings.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            settings.model = "gpt-5.6-luna"
+    func applyProviderPreset(_ provider: TranslationProvider) {
+        settings.provider = provider
+        switch provider {
+        case .relay:
+            settings.providerName = "中转服务"
+            settings.baseURL = ""
+            settings.endpoint = .chatCompletions
+        case .openRouter:
+            settings.providerName = "OpenRouter"
+            settings.baseURL = "https://openrouter.ai/api/v1"
+            settings.endpoint = .chatCompletions
+        case .openAI:
+            settings.providerName = "OpenAI 官方"
+            settings.baseURL = "https://api.openai.com/v1"
+            settings.endpoint = .chatCompletions
+        case .anthropic:
+            settings.providerName = "Claude 官方"
+            settings.baseURL = "https://api.anthropic.com"
+            settings.endpoint = .chatCompletions
         }
-        UserPreferencesStore.saveSettings(settings)
-    }
-
-    func applyOpenAIPreset() {
-        settings.providerName = "OpenAI"
-        settings.baseURL = "https://api.openai.com/v1"
-        if settings.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            settings.model = "gpt-5.5"
-        }
-        UserPreferencesStore.saveSettings(settings)
     }
 
     func importWithPanel() {

@@ -45,9 +45,26 @@ struct AppStrings {
                "Follow macOS by default, or pin the app to light or dark mode")
     }
     var provider: String { choose("接口", "Provider") }
-    var providerName: String { choose("接口名称", "Provider Name") }
+    var providerType: String { choose("服务类型", "Provider Type") }
+    var providerNameLabel: String { choose("中转名称", "Relay Name") }
     var providerURL: String { choose("接口地址", "Base URL") }
     var apiKey: String { choose("密钥", "API Key") }
+    func providerName(_ provider: TranslationProvider) -> String {
+        switch provider {
+        case .relay: return choose("中转服务", "Relay")
+        case .openRouter: return "OpenRouter"
+        case .openAI: return choose("OpenAI 官方", "OpenAI Official")
+        case .anthropic: return choose("Claude 官方", "Claude Official")
+        }
+    }
+    func providerHint(_ provider: TranslationProvider) -> String {
+        switch provider {
+        case .relay: return choose("适用于兼容 OpenAI Chat Completions 的中转平台 请填写完整 Base URL", "For OpenAI Chat Completions compatible relays. Enter the full Base URL.")
+        case .openRouter: return choose("使用 OpenRouter 官方兼容接口", "Uses OpenRouter's official compatible endpoint.")
+        case .openAI: return choose("使用 OpenAI 官方接口 支持聊天补全和 Responses", "Uses the official OpenAI API with Chat Completions and Responses support.")
+        case .anthropic: return choose("使用 Anthropic Messages 接口 模型名例如 claude-sonnet-4-5", "Uses Anthropic Messages. Example model: claude-sonnet-4-5.")
+        }
+    }
     var modelName: String { choose("模型名称", "Model Name") }
     var endpointMode: String { choose("接口模式", "Endpoint") }
     var customTargetLanguage: String { choose("自定义目标语言", "Custom Target Language") }

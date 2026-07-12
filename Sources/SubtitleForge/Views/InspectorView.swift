@@ -85,28 +85,32 @@ struct InspectorView: View {
         let strings = store.strings
 
         return SettingsGroup(title: strings.provider) {
-            HStack {
-                Button("AIHubMix") {
-                    store.applyAIHubMixPreset()
-                }
-                Button("OpenAI") {
-                    store.applyOpenAIPreset()
+            Picker(strings.providerType, selection: providerBinding) {
+                ForEach(TranslationProvider.allCases) { provider in
+                    Text(strings.providerName(provider)).tag(provider)
                 }
             }
-            .buttonStyle(.bordered)
+            .pickerStyle(.segmented)
 
-            SettingsField(title: strings.providerName) {
-                TextField(strings.providerName, text: $store.settings.providerName)
+            if store.settings.provider == .relay {
+                SettingsField(title: strings.providerNameLabel) {
+                    TextField(strings.providerNameLabel, text: $store.settings.providerName)
+                }
             }
 
             SettingsField(title: strings.providerURL) {
                 TextField(strings.providerURL, text: $store.settings.baseURL)
                     .textContentType(.URL)
+                    .disabled(store.settings.provider != .relay)
             }
 
             SettingsField(title: strings.apiKey) {
                 SecureField(strings.apiKey, text: $store.apiKey)
             }
+
+            Text(strings.providerHint(store.settings.provider))
+                .font(.caption)
+                .foregroundStyle(AppTheme.mutedIvory)
         }
     }
 
@@ -135,12 +139,14 @@ struct InspectorView: View {
                     .foregroundStyle(AppTheme.mutedIvory)
             }
 
-            Picker(strings.endpointMode, selection: $store.settings.endpoint) {
-                ForEach(TranslationEndpoint.allCases) { endpoint in
-                    Text(strings.endpointName(endpoint)).tag(endpoint)
+            if store.settings.provider != .anthropic {
+                Picker(strings.endpointMode, selection: $store.settings.endpoint) {
+                    ForEach(TranslationEndpoint.allCases) { endpoint in
+                        Text(strings.endpointName(endpoint)).tag(endpoint)
+                    }
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
 
             Picker(strings.targetLanguage, selection: $store.settings.targetLanguage) {
                 ForEach(strings.targetLanguageOptions, id: \.value) { option in
@@ -170,6 +176,13 @@ struct InspectorView: View {
                 .font(.caption)
                 .foregroundStyle(AppTheme.mutedIvory)
         }
+    }
+
+    private var providerBinding: Binding<TranslationProvider> {
+        Binding(
+            get: { store.settings.provider },
+            set: { store.applyProviderPreset($0) }
+        )
     }
 
     private var advancedSection: some View {

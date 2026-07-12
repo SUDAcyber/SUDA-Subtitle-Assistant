@@ -12,8 +12,8 @@
 - 支持中文和英文界面，默认中文，可在设置中手动切换。
 - 本地解析字幕序号、时间轴和文本。
 - 目标语言可指定，默认简体中文。
-- 默认 AIHubMix：`https://aihubmix.com/v1`，模型默认 `gpt-5.5`。
-- 支持任意 OpenAI 兼容服务：可改接口地址、密钥、模型名。
+- 支持中转服务、OpenRouter、OpenAI 官方和 Claude 官方四类翻译接口。
+- 中转服务使用 OpenAI 兼容协议，可填写接口地址、密钥和模型名；Claude 官方使用 Anthropic Messages。
 - 支持聊天补全和 Responses 两种接口模式。
 - 支持推理深度、输出长度、分段大小、上下文重叠、失败重试。
 - 密钥存入 macOS Keychain。

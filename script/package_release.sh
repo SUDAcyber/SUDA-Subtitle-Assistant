@@ -17,6 +17,7 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_FILE="$ROOT_DIR/Resources/AppIcon.icns"
+BUILTIN_README="$ROOT_DIR/Docs/使用说明.md"
 BUILD_NUMBER="${BUILD_NUMBER:-$(date +%Y%m%d%H%M)}"
 COMMIT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
@@ -57,6 +58,10 @@ fi
 
 if [[ -f "$ICON_FILE" ]]; then
   cp "$ICON_FILE" "$APP_RESOURCES/AppIcon.icns"
+fi
+
+if [[ -f "$BUILTIN_README" ]]; then
+  cp "$BUILTIN_README" "$APP_RESOURCES/使用说明.md"
 fi
 
 cat >"$INFO_PLIST" <<PLIST
@@ -113,6 +118,9 @@ ditto -c -k --sequesterRsrc --keepParent "$FINAL_APP" "$ZIP_PATH"
 
 mkdir -p "$DMG_STAGING"
 ditto "$FINAL_APP" "$DMG_STAGING/$DISPLAY_NAME.app"
+if [[ -f "$BUILTIN_README" ]]; then
+  cp "$BUILTIN_README" "$DMG_STAGING/使用说明.md"
+fi
 ln -s /Applications "$DMG_STAGING/Applications"
 hdiutil create -volname "$DISPLAY_NAME $VERSION" -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_PATH"
 

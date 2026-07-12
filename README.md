@@ -52,10 +52,40 @@ Release 为了控制体积，不内置 Typhoon 或 Whisper 大模型；应用与
 
 ### 6. AI 翻译接口、密钥与数据
 
-- 默认使用 AIHubMix 的 OpenAI 兼容接口，也可切换 OpenAI 或其他兼容 `/v1/chat/completions` / `/v1/responses` 的服务。
+- 翻译接口分为“中转服务”“OpenRouter”“OpenAI 官方”“Claude 官方”四类。中转服务使用 OpenAI 兼容协议；Claude 官方使用 Anthropic Messages 协议。
+- 中转服务需要自行填写完整 Base URL、API Key 和模型 ID。只有请求、鉴权和返回格式兼容 OpenAI 的服务才能直接使用。
 - API Key 仅保存在 macOS Keychain；项目源码、Release、DMG 和默认设置都不包含真实密钥。
 - 字幕原文、剧情分析样本和翻译记忆会按所选接口发送到对应模型服务；如果内容敏感，请先确认服务商的隐私政策。
 - Release 不预置任何个人翻译记忆。用户自行添加的记忆仅保存在本机偏好设置中。
+
+#### 应该选择哪一种接口
+
+| 你购买或申请 API 的地方 | SUDA 中的选择 | Base URL | API Key 和模型 |
+| --- | --- | --- | --- |
+| OpenAI 官方平台 | OpenAI 官方 | App 自动填写 `https://api.openai.com/v1` | 在 [OpenAI API Keys](https://platform.openai.com/api-keys) 创建 Key；模型 ID 从官方模型页或控制台复制 |
+| Anthropic 官方平台 | Claude 官方 | App 自动填写 `https://api.anthropic.com` | 在 [Anthropic Console](https://console.anthropic.com/settings/keys) 创建 Key；填写账户可用的 Claude 模型 ID |
+| OpenRouter | OpenRouter | App 自动填写 `https://openrouter.ai/api/v1` | 在 [OpenRouter Keys](https://openrouter.ai/settings/keys) 创建 Key；从模型页面复制带厂商前缀的 ID，例如 `anthropic/...` |
+| AIHubMix、DMXAPI 等 OpenAI 兼容中转 | 中转服务 | 按该服务商文档填写 | 从中转平台创建 Key，并复制平台实际支持的模型 ID |
+| 火山方舟（豆包） | 中转服务 | `https://ark.cn-beijing.volces.com/api/v3` | 使用火山方舟 API Key；模型通常填写推理接入点 ID `ep-...`，以控制台为准 |
+
+#### 中转地址怎么填写
+
+1. 先在服务商文档中确认它明确提供 **OpenAI-compatible** 或兼容 **Chat Completions** 的接口。仅宣传“支持 GPT/Claude”不代表协议兼容。
+2. 填写文档给出的 API 根地址，不要填写网站首页、登录页、控制台地址或具体模型页面。例如文档给出 `https://example.com/v1/chat/completions` 时，SUDA 的 Base URL 通常填写 `https://example.com/v1`，App 会自动追加 `chat/completions`。
+3. 不要重复路径：Base URL 已经以 `/v1` 结尾时，不要再写 `/v1/chat/completions`；否则可能变成重复路径并返回 404。
+4. API Key 必须来自同一家服务；不能把 OpenAI Key 填到 OpenRouter 或中转地址，也不能把网页会员订阅当作 API 余额。
+5. 模型 ID 必须逐字复制服务商控制台或文档中的值。显示名称“GPT”“Claude”“豆包”通常不能直接作为模型 ID。
+6. 如果平台使用签名鉴权、专用 SDK、Anthropic/Gemini 原生协议或额外必填请求头，仅靠 Base URL 和 API Key 不能兼容当前“中转服务”。
+
+#### 接口模式怎么选
+
+- 普通中转、OpenRouter、豆包/火山方舟优先选择“聊天补全”。这是兼容范围最广的方式。
+- OpenAI 官方可使用“聊天补全”；只有确认所选模型支持 Responses API 时才切换“Responses 接口”。
+- Claude 官方会自动使用 Anthropic Messages，不需要也不会显示 OpenAI 接口模式。
+- 遇到 `401/403`：检查 Key、余额、账户权限及 Key 是否属于当前服务商。
+- 遇到 `404`：优先检查 Base URL 是否填成完整请求路径、是否缺少或重复 `/v1`，以及模型 ID 是否存在。
+- 遇到 `429`：通常是余额、速率限制或并发过高，可降低“并发请求”后重试。
+- 遇到 `400`：模型可能不支持推理深度、JSON 输出或当前接口模式，先切换聊天补全并使用平台明确支持的模型。
 
 ### 7. 导入格式、MKV 与批量处理
 
@@ -69,7 +99,7 @@ Release 为了控制体积，不内置 Typhoon 或 Whisper 大模型；应用与
 - “生成字幕/另存为”优先导出译文。
 - 查找替换中的“定位下一处”会循环跳转、自动滚动并高亮匹配字幕。
 
-SUDA字幕翻译助手是一个 macOS 字幕翻译工具，英文界面名为 SUDATranslator。软件默认使用中文界面和 AIHubMix 的 OpenAI 兼容接口，也可以切换到英文界面，或切换到任意兼容 `/v1/chat/completions` 或 `/v1/responses` 的大模型服务。
+SUDA字幕翻译助手是一个 macOS 字幕翻译工具，英文界面名为 SUDATranslator。软件默认使用中文界面，支持 OpenAI 兼容中转、OpenRouter、OpenAI 官方和 Claude 官方接口，也可以切换到英文界面。
 
 ![UI concept](Docs/Concepts/subtitle-forge-ui-concept.png)
 
@@ -89,13 +119,13 @@ SUDA字幕翻译助手是一个 macOS 字幕翻译工具，英文界面名为 SU
 - 历史记录支持移到回收箱，15 天后自动清理，也可以手动永久删除。
 - 疑似未确认人名会在翻译完成后高亮提醒检查。
 
-## 默认接口
+## 翻译接口
 
 ```text
-接口名称: AIHubMix
-接口地址: https://aihubmix.com/v1
-模型: gpt-5.5
-接口模式: 聊天补全
+中转服务: 自行填写 OpenAI 兼容 Base URL、API Key 和模型 ID
+OpenRouter: https://openrouter.ai/api/v1
+OpenAI 官方: https://api.openai.com/v1
+Claude 官方: https://api.anthropic.com（Anthropic Messages）
 ```
 
 密钥会写入 macOS Keychain，不会提交到 git。
@@ -148,7 +178,7 @@ swift test
 生成 macOS `.app`、`.zip` 和 `.dmg`：
 
 ```bash
-./script/package_release.sh 0.3.1
+./script/package_release.sh 0.4.0
 ```
 
 产物会输出到 `dist/release/`。如果本机没有 Developer ID 证书，脚本会使用 ad-hoc 签名，适合内部测试。正式发布时设置 `CODE_SIGN_IDENTITY` 和已保存的 `NOTARY_PROFILE`，脚本会自动签名、提交 Apple 公证并 staple 公证票据。
