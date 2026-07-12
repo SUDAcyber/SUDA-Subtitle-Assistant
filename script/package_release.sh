@@ -4,6 +4,7 @@ set -euo pipefail
 VERSION="${1:-0.1.0}"
 APP_NAME="SubtitleForge"
 DISPLAY_NAME="SUDA字幕翻译助手"
+ARTIFACT_NAME="SUDA-Subtitle-Assistant"
 BUNDLE_ID="com.subtitleforge.app"
 MIN_SYSTEM_VERSION="14.0"
 
@@ -22,9 +23,9 @@ BUILD_NUMBER="${BUILD_NUMBER:-$(date +%Y%m%d%H%M)}"
 COMMIT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 
 FINAL_APP="$DIST_DIR/$DISPLAY_NAME.app"
-ZIP_PATH="$DIST_DIR/$DISPLAY_NAME-$VERSION-macOS.zip"
-DMG_PATH="$DIST_DIR/$DISPLAY_NAME-$VERSION-macOS.dmg"
-CHECKSUM_PATH="$DIST_DIR/$DISPLAY_NAME-$VERSION-checksums.txt"
+ZIP_PATH="$DIST_DIR/$ARTIFACT_NAME-$VERSION-macOS.zip"
+DMG_PATH="$DIST_DIR/$ARTIFACT_NAME-$VERSION-macOS.dmg"
+CHECKSUM_PATH="$DIST_DIR/$ARTIFACT_NAME-$VERSION-checksums.txt"
 DMG_STAGING="$WORK_DIR/dmg"
 
 cd "$ROOT_DIR"
