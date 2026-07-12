@@ -16,13 +16,19 @@ let package = Package(
             targets: ["SubtitleForge"]
         )
     ],
+    dependencies: [
+        .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "1.0.0")
+    ],
     targets: [
         .target(
             name: "SubtitleForgeCore"
         ),
         .executableTarget(
             name: "SubtitleForge",
-            dependencies: ["SubtitleForgeCore"],
+            dependencies: [
+                "SubtitleForgeCore",
+                .product(name: "WhisperKit", package: "WhisperKit")
+            ],
             linkerSettings: [
                 .linkedFramework("Security")
             ]
