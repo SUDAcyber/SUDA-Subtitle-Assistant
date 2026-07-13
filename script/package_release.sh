@@ -48,6 +48,11 @@ while IFS= read -r -d '' RESOURCE_BUNDLE; do
   ditto "$RESOURCE_BUNDLE" "$APP_RESOURCES/$(basename "$RESOURCE_BUNDLE")"
 done < <(find "$BUILD_BIN_DIR" -maxdepth 1 -type d -name '*.bundle' -print0)
 
+if ! find "$APP_RESOURCES" -type f -name 'install_typhoon.sh' -print -quit | grep -q .; then
+  echo "ERROR: install_typhoon.sh 未被打包进 App" >&2
+  exit 1
+fi
+
 if [[ -n "${BUNDLE_WHISPER_MODEL_DIR:-}" ]]; then
   [[ -d "$BUNDLE_WHISPER_MODEL_DIR" ]] || {
     echo "BUNDLE_WHISPER_MODEL_DIR is not a directory: $BUNDLE_WHISPER_MODEL_DIR" >&2

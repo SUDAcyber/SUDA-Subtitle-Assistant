@@ -23,11 +23,23 @@ pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 swift build
 BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
+BUILD_BIN_DIR="$(dirname "$BUILD_BINARY")"
 
 rm -rf "$APP_BUNDLE" "$LEGACY_APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+
+# SwiftPM stores target resources in a generated .bundle next to the binary.
+# Copy it into the app bundle or Bundle.module will trap at runtime.
+while IFS= read -r -d '' RESOURCE_BUNDLE; do
+  ditto "$RESOURCE_BUNDLE" "$APP_RESOURCES/$(basename "$RESOURCE_BUNDLE")"
+done < <(find "$BUILD_BIN_DIR" -maxdepth 1 -type d -name '*.bundle' -print0)
+
+if ! find "$APP_RESOURCES" -type f -name 'install_typhoon.sh' -print -quit | grep -q .; then
+  echo "ERROR: install_typhoon.sh 未被打包进 App" >&2
+  exit 1
+fi
 
 if [[ -f "$ICON_FILE" ]]; then
   cp "$ICON_FILE" "$APP_RESOURCES/AppIcon.icns"
