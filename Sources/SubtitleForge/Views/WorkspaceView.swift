@@ -314,7 +314,10 @@ private struct SubtitlePreviewView: View {
                             strings: store.strings,
                             nameCandidates: { store.nameCandidates(forCueSequence: cue.sequence) },
                             onPinNames: { store.pinNames($0, forCueSequence: cue.sequence) },
-                            onEditTranslation: { store.updateTranslation(documentID: document.id, sequence: cue.sequence, text: $0, undoManager: undoManager) }
+                            onEditTranslation: {
+                                store.undoManager = undoManager
+                                store.updateTranslation(documentID: document.id, sequence: cue.sequence, text: $0)
+                            }
                         )
                         .id(cue.sequence)
                     }

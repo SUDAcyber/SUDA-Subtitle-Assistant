@@ -614,12 +614,17 @@ final class AppStore {
         progress = TranslationProgress(phase: .idle, message: strings.translationsCleared)
     }
 
+    /// The window's UndoManager, set by the preview view. Held here (MainActor-
+    /// isolated) so the undo handler closure need not capture the non-Sendable
+    /// UndoManager, which crashes strict-concurrency builds.
+    var undoManager: UndoManager?
+
     /// Inline edit from the preview list: writes the new translation for one cue.
     /// Targets the document the row belonged to (not the current selection), so a
     /// commit that lands after the selection changed cannot write into another
     /// document. Registers with the window's UndoManager so Cmd+Z restores the
     /// previous translation (and Shift+Cmd+Z redoes) through the native chain.
-    func updateTranslation(documentID: UUID, sequence: Int, text: String, undoManager: UndoManager? = nil) {
+    func updateTranslation(documentID: UUID, sequence: Int, text: String) {
         guard let documentIndex = documents.firstIndex(where: { $0.id == documentID }) else { return }
         guard let cueIndex = documents[documentIndex].cues.firstIndex(where: { $0.sequence == sequence }) else { return }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -636,15 +641,11 @@ final class AppStore {
         }
 
         if let undoManager {
+            // Capture only Sendable values; the handler re-reads self.undoManager
+            // so redo re-registers natively.
             undoManager.registerUndo(withTarget: self) { store in
-                // Re-registering inside the undo handler makes redo work natively.
                 MainActor.assumeIsolated {
-                    store.updateTranslation(
-                        documentID: documentID,
-                        sequence: sequence,
-                        text: previous ?? "",
-                        undoManager: undoManager
-                    )
+                    store.updateTranslation(documentID: documentID, sequence: sequence, text: previous ?? "")
                 }
             }
             undoManager.setActionName(strings.editTranslation)
