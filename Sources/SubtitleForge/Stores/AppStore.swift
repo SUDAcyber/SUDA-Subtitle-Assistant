@@ -7,8 +7,9 @@ import UniformTypeIdentifiers
 @MainActor
 @Observable
 final class AppStore {
-    private let keychain = KeychainService()
-    private let scribeKeychain = KeychainService(account: KeychainService.scribeAccount)
+    private let credentials = CredentialStore()
+    private let legacyKeychain = KeychainService()
+    private let legacyScribeKeychain = KeychainService(account: KeychainService.scribeAccount)
     private let client: any SubtitleTranslationClient
     private var translationTask: Task<Void, Never>?
     private var transcriptionTask: Task<Void, Never>?
@@ -63,13 +64,13 @@ final class AppStore {
     var apiKey = "" {
         didSet {
             guard !isHydratingSecrets else { return }
-            keychain.saveAPIKey(apiKey)
+            credentials.save(apiKey, account: KeychainService.translationAccount)
         }
     }
     var scribeAPIKey = "" {
         didSet {
             guard !isHydratingSecrets else { return }
-            scribeKeychain.saveAPIKey(scribeAPIKey)
+            credentials.save(scribeAPIKey, account: KeychainService.scribeAccount)
             // Resume a queue parked on a missing Scribe key only once the key looks
             // complete, so a half-typed key never fires a doomed request.
             let key = scribeAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -161,22 +162,29 @@ final class AppStore {
         AppStrings(language: interfaceLanguage)
     }
 
-    /// Loads stored API keys off the main thread. A keychain read can block on
-    /// the system authorization prompt — every ad-hoc-signed build is a new
-    /// identity to the keychain — and doing that synchronously in init froze the
-    /// app before its window ever appeared (the prompt was often hidden behind
-    /// other windows, so it looked like a hang).
+    /// Loads stored API keys off the main thread. Keys live in `CredentialStore`;
+    /// keys saved by older versions are migrated out of the keychain once (that
+    /// read may show the system "allow access?" prompt a single time) and the
+    /// keychain items are then deleted so no later build ever prompts again.
+    /// Doing this synchronously in init used to freeze launch before any window
+    /// appeared, with the prompt often hidden behind other apps.
     private func hydrateSecrets() {
-        let keychain = self.keychain
-        let scribeKeychain = self.scribeKeychain
+        let credentials = self.credentials
+        let legacyKeychain = self.legacyKeychain
+        let legacyScribeKeychain = self.legacyScribeKeychain
         Task.detached(priority: .userInitiated) { [weak self] in
-            let translationKey = keychain.loadAPIKey()
-            let scribeKey = scribeKeychain.loadAPIKey()
-            // Items written by older builds carry a per-app ACL that prompts on
-            // every rebuild/upgrade; once read successfully, rewrite them with the
-            // open ACL so no future build prompts again.
-            if !translationKey.isEmpty { keychain.saveAPIKey(translationKey) }
-            if !scribeKey.isEmpty { scribeKeychain.saveAPIKey(scribeKey) }
+            func resolve(account: String, legacy: KeychainService) -> String {
+                let stored = credentials.load(account: account)
+                if !stored.isEmpty { return stored }
+                let migrated = legacy.loadAPIKey()
+                if !migrated.isEmpty {
+                    credentials.save(migrated, account: account)
+                    legacy.deleteAPIKey()
+                }
+                return migrated
+            }
+            let translationKey = resolve(account: KeychainService.translationAccount, legacy: legacyKeychain)
+            let scribeKey = resolve(account: KeychainService.scribeAccount, legacy: legacyScribeKeychain)
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.isHydratingSecrets = true
@@ -238,7 +246,7 @@ final class AppStore {
     }
 
     func saveAPIKey() {
-        keychain.saveAPIKey(apiKey)
+        credentials.save(apiKey, account: KeychainService.translationAccount)
     }
 
     func applyProviderPreset(_ provider: TranslationProvider) {

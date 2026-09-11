@@ -1,6 +1,9 @@
 import Foundation
 import Security
 
+/// Legacy credential storage. Kept only to migrate keys saved by earlier
+/// versions into `CredentialStore`; reading may show the system "allow access?"
+/// prompt once, after which the item is deleted so it never prompts again.
 struct KeychainService: Sendable {
     private let service = "com.subtitleforge.credentials"
     private let account: String
@@ -28,34 +31,8 @@ struct KeychainService: Sendable {
         return key
     }
 
-    func saveAPIKey(_ apiKey: String) {
-        deleteAPIKey()
-        let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let data = trimmed.data(using: .utf8) else { return }
-
-        var query = baseQuery
-        query[kSecValueData as String] = data
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        // The app is ad-hoc signed, so every build is a different identity to the
-        // keychain and the default per-app ACL prompts "allow access?" on each
-        // launch after a rebuild or upgrade. Trust all applications for this item
-        // instead: it stays encrypted in the login keychain, and the per-app ACL
-        // gave no real protection once the identity changes with every build.
-        if let access = Self.makeOpenAccess() {
-            query[kSecAttrAccess as String] = access
-        }
-        SecItemAdd(query as CFDictionary, nil)
-    }
-
-    private func deleteAPIKey() {
+    func deleteAPIKey() {
         SecItemDelete(baseQuery as CFDictionary)
-    }
-
-    private static func makeOpenAccess() -> SecAccess? {
-        var access: SecAccess?
-        // A nil trusted-application list means every application is trusted.
-        let status = SecAccessCreate("SUDA字幕翻译助手 API Key" as CFString, nil, &access)
-        return status == errSecSuccess ? access : nil
     }
 
     private var baseQuery: [String: Any] {
