@@ -6,6 +6,13 @@ enum UserPreferencesStore {
     private static let previewCueLimitKey = "subtitleForge.previewCueLimit"
     private static let colorSchemeModeKey = "subtitleForge.colorSchemeMode"
     private static let interfaceLanguageKey = "subtitleForge.interfaceLanguage"
+    private static let keychainMigratedKey = "subtitleForge.legacyKeychainMigrated"
+
+    /// Whether the one-time keychain → CredentialStore migration has already run.
+    static var hasMigratedLegacyKeychain: Bool {
+        get { UserDefaults.standard.bool(forKey: keychainMigratedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: keychainMigratedKey) }
+    }
 
     static func loadSettings() -> TranslationSettings {
         guard let data = UserDefaults.standard.data(forKey: settingsKey),

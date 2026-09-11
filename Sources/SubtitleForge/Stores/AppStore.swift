@@ -172,10 +172,13 @@ final class AppStore {
         let credentials = self.credentials
         let legacyKeychain = self.legacyKeychain
         let legacyScribeKeychain = self.legacyScribeKeychain
+        // The keychain is consulted at most once per machine, even if that read
+        // is denied or fails: a denied prompt must not come back on every launch.
+        let migrateFromKeychain = !UserPreferencesStore.hasMigratedLegacyKeychain
         Task.detached(priority: .userInitiated) { [weak self] in
             func resolve(account: String, legacy: KeychainService) -> String {
                 let stored = credentials.load(account: account)
-                if !stored.isEmpty { return stored }
+                if !stored.isEmpty || !migrateFromKeychain { return stored }
                 let migrated = legacy.loadAPIKey()
                 if !migrated.isEmpty {
                     credentials.save(migrated, account: account)
@@ -185,6 +188,9 @@ final class AppStore {
             }
             let translationKey = resolve(account: KeychainService.translationAccount, legacy: legacyKeychain)
             let scribeKey = resolve(account: KeychainService.scribeAccount, legacy: legacyScribeKeychain)
+            if migrateFromKeychain {
+                await MainActor.run { UserPreferencesStore.hasMigratedLegacyKeychain = true }
+            }
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.isHydratingSecrets = true
