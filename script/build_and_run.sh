@@ -19,7 +19,16 @@ INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_FILE="$ROOT_DIR/Resources/AppIcon.icns"
 
 cd "$ROOT_DIR"
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+# Ask the running copy to quit gracefully first: a force-kill makes macOS flag
+# the app as "force quit while reopening windows" and prompt on the next launch.
+if pgrep -x "$APP_NAME" >/dev/null; then
+  (osascript -e 'tell application id "com.subtitleforge.app" to quit' >/dev/null 2>&1 &)
+  for _ in 1 2 3 4 5 6; do
+    pgrep -x "$APP_NAME" >/dev/null || break
+    sleep 0.5
+  done
+  pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+fi
 
 swift build
 BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"

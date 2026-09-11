@@ -13,11 +13,12 @@ enum UserPreferencesStore {
         else {
             return .aiHubMixDefault
         }
-        return settings
+        // Defensive: a corrupted single-line field must never reach the UI.
+        return settings.sanitized()
     }
 
     static func saveSettings(_ settings: TranslationSettings) {
-        guard let data = try? JSONEncoder().encode(settings) else { return }
+        guard let data = try? JSONEncoder().encode(settings.sanitized()) else { return }
         UserDefaults.standard.set(data, forKey: settingsKey)
     }
 

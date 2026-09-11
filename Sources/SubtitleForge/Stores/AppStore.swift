@@ -55,13 +55,20 @@ final class AppStore {
             }
         }
     }
+    /// True while stored secrets are being hydrated at launch, so the observers
+    /// below never write back (a denied/failed keychain read must not overwrite
+    /// or delete the key the user already saved).
+    private var isHydratingSecrets = false
+
     var apiKey = "" {
         didSet {
+            guard !isHydratingSecrets else { return }
             keychain.saveAPIKey(apiKey)
         }
     }
     var scribeAPIKey = "" {
         didSet {
+            guard !isHydratingSecrets else { return }
             scribeKeychain.saveAPIKey(scribeAPIKey)
             // Resume a queue parked on a missing Scribe key only once the key looks
             // complete, so a half-typed key never fires a doomed request.
@@ -121,9 +128,8 @@ final class AppStore {
 
     init(client: any SubtitleTranslationClient = RoutingTranslationClient()) {
         self.client = client
-        self.apiKey = keychain.loadAPIKey()
-        self.scribeAPIKey = scribeKeychain.loadAPIKey()
         self.progress.message = strings.idle
+        hydrateSecrets()
         emptyExpiredTrash()
         self.selectedDocumentID = activeDocuments.first?.id ?? trashedDocuments.first?.id
         if let selectedDocument {
@@ -153,6 +159,37 @@ final class AppStore {
 
     var strings: AppStrings {
         AppStrings(language: interfaceLanguage)
+    }
+
+    /// Loads stored API keys off the main thread. A keychain read can block on
+    /// the system authorization prompt — every ad-hoc-signed build is a new
+    /// identity to the keychain — and doing that synchronously in init froze the
+    /// app before its window ever appeared (the prompt was often hidden behind
+    /// other windows, so it looked like a hang).
+    private func hydrateSecrets() {
+        let keychain = self.keychain
+        let scribeKeychain = self.scribeKeychain
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let translationKey = keychain.loadAPIKey()
+            let scribeKey = scribeKeychain.loadAPIKey()
+            // Items written by older builds carry a per-app ACL that prompts on
+            // every rebuild/upgrade; once read successfully, rewrite them with the
+            // open ACL so no future build prompts again.
+            if !translationKey.isEmpty { keychain.saveAPIKey(translationKey) }
+            if !scribeKey.isEmpty { scribeKeychain.saveAPIKey(scribeKey) }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.isHydratingSecrets = true
+                defer { self.isHydratingSecrets = false }
+                // Never clobber a key the user typed while the read was pending.
+                if !translationKey.isEmpty, self.apiKey.isEmpty {
+                    self.apiKey = translationKey
+                }
+                if !scribeKey.isEmpty, self.scribeAPIKey.isEmpty {
+                    self.scribeAPIKey = scribeKey
+                }
+            }
+        }
     }
 
     var selectedDocument: SubtitleDocument? {
